@@ -6,7 +6,7 @@ import {
 	isFullscreenAtBottom,
 } from "../../renderer/mouse/scroll.ts";
 import { formatDuration } from "../../utils/format.ts";
-import { resetTokenRate, sampleTokenRate } from "./token-rate.ts";
+import { resetTokenRate, markFirstToken, sampleTokenRate } from "./token-rate.ts";
 
 const REFRESH_INTERVAL_MS = 1_000;
 /** Elapsed time is only shown once the turn has run this long. */
@@ -213,6 +213,7 @@ export default function (pi: ExtensionAPI): void {
 		if (evt.type === "start") {
 			resetResponseTracking(evt.partial);
 		} else if (evt.type === "thinking_start" || evt.type === "text_start") {
+			markFirstToken();
 			setTextBlockLength(evt.contentIndex, 0);
 			updateProviderUsage(evt.partial);
 		} else if (evt.type === "thinking_delta" || evt.type === "text_delta") {

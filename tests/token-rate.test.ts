@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	currentTokenRate,
+	currentTtftMs,
 	formatTokenRate,
+	markFirstToken,
 	resetTokenRate,
 	sampleTokenRate,
 } from "../extensions/feature/shell/token-rate.ts";
@@ -11,10 +13,16 @@ test("formatTokenRate renders empty for no data, rounds below 1k, and uses k abo
 	assert.equal(formatTokenRate(0), "");
 	assert.equal(formatTokenRate(-1), "");
 	assert.equal(formatTokenRate(Number.NaN), "");
-	assert.equal(formatTokenRate(42.4), "42 tok/s");
-	assert.equal(formatTokenRate(99.6), "100 tok/s");
-	assert.equal(formatTokenRate(1234), "1.2k tok/s");
-	assert.equal(formatTokenRate(10500), "10.5k tok/s");
+	assert.equal(formatTokenRate(42.4), "avg 42 tok/s");
+	assert.equal(formatTokenRate(99.6), "avg 100 tok/s");
+	assert.equal(formatTokenRate(1234), "avg 1.2k tok/s");
+	assert.equal(formatTokenRate(10500), "avg 10.5k tok/s");
+});
+
+test("formatTokenRate appends TTFT only when present", () => {
+	assert.equal(formatTokenRate(1200, 0), "avg 1.2k tok/s");
+	assert.equal(formatTokenRate(1200, 812.4), "avg 1.2k tok/s (TTFT: 812ms)");
+	assert.equal(formatTokenRate(1200, -5), "avg 1.2k tok/s");
 });
 
 test("rate samples average tokens over elapsed turn time", () => {
@@ -47,4 +55,17 @@ test("resetTokenRate(startAt) restarts accumulation from a new turn start", () =
 	assert.equal(currentTokenRate(), 0);
 	sampleTokenRate(50, 20_500); // 50 tokens in 0.5s
 	assert.equal(currentTokenRate(), 100);
+});
+
+test("TTFT records only the first content block of the turn and survives sampling", () => {
+	resetTokenRate(1_000);
+	assert.equal(currentTtftMs(), 0);
+	markFirstToken(1_500); // first block: 500ms after turn start
+	markFirstToken(2_000); // later block must not overwrite
+	assert.equal(currentTtftMs(), 500);
+	sampleTokenRate(100, 11_000); // sampling does not touch TTFT
+	assert.equal(currentTtftMs(), 500);
+
+	resetTokenRate(5_000);
+	assert.equal(currentTtftMs(), 0, "new turn clears TTFT until the first block");
 });

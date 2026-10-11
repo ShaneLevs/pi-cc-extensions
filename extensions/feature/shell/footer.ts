@@ -30,7 +30,7 @@ import {
 } from "./footer-layout.ts";
 import { createGitStatsRefresher, readGitStats, type GitStats } from "./git-stats.ts";
 import { MCP_STATUS_KEY, buildMcpChip } from "./mcp-chip.ts";
-import { currentTokenRate, formatTokenRate } from "./token-rate.ts";
+import { currentTokenRate, currentTtftMs, formatTokenRate } from "./token-rate.ts";
 
 export { parseGitStats } from "./git-stats.ts";
 
@@ -401,7 +401,7 @@ const createCustomFooterFactory =
 			const glyphs = footerGlyphs(config.footerNerdIcons);
 			const cacheLabel =
 				cachePct > 0 ? `${glyphs.cache ? `${glyphs.cache} ` : ""}${Math.floor(cachePct)}%` : "";
-			const rateLabel = formatTokenRate(currentTokenRate());
+			const rateLabel = formatTokenRate(currentTokenRate(), currentTtftMs());
 			const rateChip = rateLabel ? theme.fg("dim", rateLabel) : "";
 			const costChip =
 				cost || usingSubscription
