@@ -6,6 +6,7 @@ import {
 	isFullscreenAtBottom,
 } from "../../renderer/mouse/scroll.ts";
 import { formatDuration } from "../../utils/format.ts";
+import { resetTokenRate, sampleTokenRate } from "./token-rate.ts";
 
 const REFRESH_INTERVAL_MS = 1_000;
 /** Elapsed time is only shown once the turn has run this long. */
@@ -73,6 +74,10 @@ export default function (pi: ExtensionAPI): void {
 		return providerOutputTokens || Math.max(0, Math.round(responseLength / 4));
 	}
 
+	function updateTokenRate(): void {
+		sampleTokenRate(tokenCount());
+	}
+
 	function setTextBlockLength(index: number, length: number): void {
 		const previous = responseTextBlockLengths[index] ?? 0;
 		responseTextBlockLengths[index] = Math.max(0, length);
@@ -83,6 +88,7 @@ export default function (pi: ExtensionAPI): void {
 		responseTextBlockLengths = message ? textBlockLengths(message) : [];
 		responseLength = responseTextBlockLengths.reduce((sum, length) => sum + length, 0);
 		providerOutputTokens = message ? outputUsage(message) : 0;
+		updateTokenRate();
 	}
 
 	function updateProviderUsage(message: StreamMessage): void {
@@ -179,6 +185,7 @@ export default function (pi: ExtensionAPI): void {
 		stopRefreshLoop();
 		agentStartTime = 0;
 		turnStartTime = 0;
+		// 不重置 token-rate：footer 定格显示上一回合速率
 		resetResponseTracking();
 		restoreDefaultWorkingMessage();
 	}
@@ -192,6 +199,7 @@ export default function (pi: ExtensionAPI): void {
 		activeCtx = ctx;
 		turnStartTime = Date.now();
 		if (!agentStartTime) agentStartTime = turnStartTime;
+		resetTokenRate(turnStartTime);
 		resetResponseTracking();
 		syncWorkingMessage(true);
 		scheduleRefreshTick();
@@ -226,6 +234,7 @@ export default function (pi: ExtensionAPI): void {
 		}
 
 		syncWorkingMessage();
+		updateTokenRate();
 		scheduleRefreshTick();
 	});
 
