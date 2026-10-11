@@ -212,10 +212,19 @@ export default function (pi: ExtensionAPI): void {
 
 		if (evt.type === "start") {
 			resetResponseTracking(evt.partial);
-		} else if (evt.type === "thinking_start" || evt.type === "text_start") {
+		} else if (
+			evt.type === "thinking_start" ||
+			evt.type === "text_start" ||
+			evt.type === "toolcall_start"
+		) {
+			// TTFT 的首块含 toolcall_start：模型直接发起 tool call（thinking/text 省略）时也算首 token
 			markFirstToken();
-			setTextBlockLength(evt.contentIndex, 0);
-			updateProviderUsage(evt.partial);
+			if (evt.type === "toolcall_start") {
+				updateProviderUsage(evt.partial);
+			} else {
+				setTextBlockLength(evt.contentIndex, 0);
+				updateProviderUsage(evt.partial);
+			}
 		} else if (evt.type === "thinking_delta" || evt.type === "text_delta") {
 			const add = typeof evt.delta === "string" ? evt.delta.length : 0;
 			setTextBlockLength(evt.contentIndex, (responseTextBlockLengths[evt.contentIndex] ?? 0) + add);

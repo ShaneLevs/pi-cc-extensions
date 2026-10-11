@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import workingMessageExtension from "../extensions/feature/shell/working-message.ts";
+import { initTheme } from "@earendil-works/pi-coding-agent";
 import {
 	currentTokenRate,
 	currentTtftMs,
@@ -8,6 +10,20 @@ import {
 	resetTokenRate,
 	sampleTokenRate,
 } from "../extensions/feature/shell/token-rate.ts";
+
+initTheme("dark");
+
+function install() {
+	const events = new Map<string, Function>();
+	const ui = { setWorkingMessage() {} } as any;
+	workingMessageExtension({
+		on(name: string, handler: Function) {
+			events.set(name, handler);
+		},
+	} as any);
+	const ctx = { hasUI: true, ui };
+	return { events, ctx };
+}
 
 test("formatTokenRate renders empty for no data, rounds below 1k, and uses k above", () => {
 	assert.equal(formatTokenRate(0), "");
@@ -68,4 +84,17 @@ test("TTFT records only the first content block of the turn and survives samplin
 
 	resetTokenRate(5_000);
 	assert.equal(currentTtftMs(), 0, "new turn clears TTFT until the first block");
+});
+
+test("toolcall_start marks the first token like text/thinking starts", async () => {
+	const { events, ctx } = install();
+
+	await events.get("turn_start")?.({}, ctx);
+	await new Promise((resolve) => setTimeout(resolve, 5));
+	// 模型直接发起 tool call：没有 thinking/text，首块是 toolcall_start
+	await events.get("message_update")?.(
+		{ assistantMessageEvent: { type: "toolcall_start", partial: { usage: { output: 10 } } } },
+		ctx,
+	);
+	assert.ok(currentTtftMs() > 0, "toolcall_start should record TTFT");
 });
